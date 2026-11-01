@@ -1,0 +1,9 @@
+# Level 0
+opencv-python
+numpy
+pytest
+supervision  # sample videos now; tracking/zones in L3
+# Level 1 — install CPU torch first so ultralytics doesn't pull the 2GB CUDA build:
+#   uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+ultralytics
+# Level 2+ (added when we get there): fastapi, ...
