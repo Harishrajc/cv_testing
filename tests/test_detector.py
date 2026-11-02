@@ -34,6 +34,8 @@ class FakeModel:
         self.calls.append(kwargs)
         return [SimpleNamespace(boxes=FakeBoxes(self.rows))]
 
+    track = predict
+
 
 def test_parse_results_converts_boxes():
     result = SimpleNamespace(boxes=FakeBoxes([[10.7, 20.2, 50.9, 120.0, 0.88, 0]]))
@@ -62,6 +64,25 @@ def test_detector_passes_settings_and_times_inference():
     assert model.calls[0]["imgsz"] == 480
     assert model.calls[0]["classes"] == [0]
     assert detector.last_inference_ms >= 0
+
+
+def test_parse_results_reads_track_ids():
+    boxes = FakeBoxes([[0, 0, 10, 10, 0.9, 0], [5, 5, 20, 30, 0.6, 0]])
+    boxes.id = np.array([3.0, 8.0])
+    dets = parse_results(SimpleNamespace(boxes=boxes), NAMES)
+    assert [d.track_id for d in dets] == [3, 8]
+
+
+def test_parse_results_without_ids_gives_none():
+    [d] = parse_results(SimpleNamespace(boxes=FakeBoxes([[0, 0, 10, 10, 0.9, 0]])), NAMES)
+    assert d.track_id is None
+
+
+def test_detector_track_uses_persistent_tracker():
+    model = FakeModel([[0, 0, 10, 10, 0.9, 0]])
+    Detector(model).track(np.zeros((50, 50, 3), dtype=np.uint8))
+    assert model.calls[0]["persist"] is True
+    assert model.calls[0]["tracker"] == "bytetrack.yaml"
 
 
 def test_detector_rejects_bad_conf():

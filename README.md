@@ -53,4 +53,23 @@ Weights auto-download into `models/` (git-ignored).
 
 Dataset: Ultralytics Construction-PPE (1,416 images, 11 classes, AGPL-3.0).
 
+## Level 3 — tracking, PPE compliance, danger zones
+
+```bash
+# 1. draw zones on the first frame (click points, Enter = finish zone, s = save)
+./scripts/l3_draw_zones.py --source data/videos/site2.mp4
+# 2. monitor: tracks workers, checks helmets, raises zone alerts
+./scripts/l3_monitor.py --source data/videos/site2.mp4 --zones configs/zones/site2.json --show
+```
+
+Example zones: `configs/zones/site2_example.json`. Events go to `outputs/l3_events.jsonl`.
+
+How decisions are made:
+- **Tracking**: ByteTrack gives each worker a stable id.
+- **Helmet**: violation = no helmet box in the person's head band for ≥60% of the last 15 frames
+  (the model's `no_helmet` class is too weak to trust: AP50 0.17). Head cut off by the frame = no evidence, not a violation.
+- **Zones**: polygons in 0–1 coordinates; the worker's *foot point* must stay inside ≥ `min_dwell_s`.
+  1 s grace before an exit counts. Feet out of frame = not checked.
+- **Severity**: in zone = zone severity; in zone without helmet = critical. Same PPE alert max once per 10 s.
+
 Put real test clips (industrial / construction / rig footage) in `data/videos/` — they are git-ignored.

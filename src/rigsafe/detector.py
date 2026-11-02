@@ -22,6 +22,7 @@ class Detection:
     confidence: float
     class_id: int
     label: str
+    track_id: int | None = None  # set only when detections come from Detector.track()
 
     @property
     def foot_point(self) -> tuple[int, int]:
@@ -33,6 +34,8 @@ class YoloModel(Protocol):
     names: dict[int, str]
 
     def predict(self, source: Any, **kwargs: Any) -> list[Any]: ...
+
+    def track(self, source: Any, **kwargs: Any) -> list[Any]: ...
 
 
 class Detector:
@@ -70,6 +73,16 @@ class Detector:
         self.last_inference_ms = (time.perf_counter() - start) * 1000
         return parse_results(results[0], self._model.names)
 
+    def track(self, frame: np.ndarray, tracker: str = "bytetrack.yaml") -> list[Detection]:
+        """Detect + assign stable track ids across frames (call once per frame, in order)."""
+        start = time.perf_counter()
+        results = self._model.track(
+            frame, persist=True, tracker=tracker, conf=self._conf, imgsz=self._imgsz,
+            classes=self._classes, verbose=False,
+        )
+        self.last_inference_ms = (time.perf_counter() - start) * 1000
+        return parse_results(results[0], self._model.names)
+
 
 def parse_results(result: Any, names: dict[int, str]) -> list[Detection]:
     """Convert one Ultralytics Results object into Detection objects."""
@@ -79,9 +92,11 @@ def parse_results(result: Any, names: dict[int, str]) -> list[Detection]:
     xyxy = np.asarray(boxes.xyxy).astype(int)
     confs = np.asarray(boxes.conf, dtype=float)
     cls_ids = np.asarray(boxes.cls).astype(int)
+    raw_ids = getattr(boxes, "id", None)  # None until the tracker confirms a track
+    track_ids = np.asarray(raw_ids).astype(int).tolist() if raw_ids is not None else [None] * len(xyxy)
     return [
-        Detection(int(x1), int(y1), int(x2), int(y2), float(c), int(k), names.get(int(k), str(k)))
-        for (x1, y1, x2, y2), c, k in zip(xyxy, confs, cls_ids)
+        Detection(int(x1), int(y1), int(x2), int(y2), float(c), int(k), names.get(int(k), str(k)), tid)
+        for (x1, y1, x2, y2), c, k, tid in zip(xyxy, confs, cls_ids, track_ids)
     ]
 
 

@@ -1,0 +1,6 @@
+{
+  "zones": [
+    {"name": "rebar_cage", "polygon": [[0.30, 0.55], [0.70, 0.55], [0.72, 1.0], [0.28, 1.0]],
+     "min_dwell_s": 2.0, "severity": "high"}
+  ]
+}
